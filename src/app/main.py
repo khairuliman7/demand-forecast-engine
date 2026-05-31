@@ -153,63 +153,72 @@ Gradio
 """
 
 import gradio as gr
+import pandas as pd
 import requests
+import json
 
 # ---------------------------------------------------------
-# 5. GRADIO STAKEHOLDER UI (FRONTEND)
+# 1. DYNAMIC DATA LOADING
 # ---------------------------------------------------------
+metadata_path = "artifacts/metadata.json"
 
-def fetch_demand(state, category):
-    """Sends a request to our own FastAPI /predict endpoint"""
+if os.path.exists(metadata_path):
+    with open(metadata_path, "r") as f:
+        metadata = json.load(f)
+        states = metadata.get("states", ["SP", "RJ", "MG", "RS"])
+        categories = metadata.get("categories", ["bed_bath_table", "health_beauty", "sports_leisure"])
+    print("✅ Metadata loaded from artifacts/metadata.json")
+else:
+    # Graceful fallback if the file is missing during a test
+    print("⚠️ Warning: metadata.json not found. Using fallback options.")
+    states = ["SP", "RJ", "MG", "RS"] 
+    categories = ["bed_bath_table", "health_beauty", "sports_leisure", "computers_accessories"]
+
+# ---------------------------------------------------------
+# 2. API CALL FUNCTIONS
+# ---------------------------------------------------------
+def fetch_demand(state, category, month, week, lag1, lag2, lag3, lag4, roll_mean, roll_std):
     try:
-        # Perfectly matches the DemandRequest Pydantic model
         payload = {
             "state": state, 
             "product_category_name": category, 
-            "month": 11,                        # Dummy MVP value
-            "week_of_year": 45,                 # Dummy MVP value
-            "demand_lag_1wk": 150.0,            # Dummy MVP value
-            "demand_lag_2wk": 145.0,            # Dummy MVP value
-            "demand_lag_3wk": 140.0,            # Dummy MVP value
-            "demand_lag_4wk": 135.0,            # Dummy MVP value
-            "rolling_mean_4wk": 142.5,          # Dummy MVP value
-            "rolling_std_4wk": 5.5              # Dummy MVP value
+            "month": int(month),
+            "week_of_year": int(week),
+            "demand_lag_1wk": float(lag1),
+            "demand_lag_2wk": float(lag2),
+            "demand_lag_3wk": float(lag3),
+            "demand_lag_4wk": float(lag4),
+            "rolling_mean_4wk": float(roll_mean),
+            "rolling_std_4wk": float(roll_std)
         } 
-        
-        # Hugging Face runs on port 7860
         response = requests.post("http://127.0.0.1:7860/predict", json=payload)
-        response.raise_for_status() # Raises an error if FastAPI rejects the payload
+        response.raise_for_status() 
         data = response.json()
-        
-        return f"📊 Predicted Demand: {data.get('predicted_demand', 'N/A')} units"
+        return f"📊 Predicted Demand: {round(data.get('predicted_demand', 0), 2)} units"
     except Exception as e:
         return f"Error connecting to backend: {str(e)}"
 
-def fetch_allocation(state, category, stock, lead_time):
-    """Sends a request to our own FastAPI /allocate endpoint"""
+def fetch_allocation(state, category, month, week, lag1, lag2, lag3, lag4, roll_mean, roll_std, stock, lead_time):
     try:
-        # Perfectly matches the AllocationRequest Pydantic model
         payload = {
             "state": state, 
             "product_category_name": category, 
-            "month": 11,
-            "week_of_year": 45,
-            "demand_lag_1wk": 150.0,
-            "demand_lag_2wk": 145.0,
-            "demand_lag_3wk": 140.0,
-            "demand_lag_4wk": 135.0,
-            "rolling_mean_4wk": 142.5,
-            "rolling_std_4wk": 5.5,
+            "month": int(month),
+            "week_of_year": int(week),
+            "demand_lag_1wk": float(lag1),
+            "demand_lag_2wk": float(lag2),
+            "demand_lag_3wk": float(lag3),
+            "demand_lag_4wk": float(lag4),
+            "rolling_mean_4wk": float(roll_mean),
+            "rolling_std_4wk": float(roll_std),
             "current_stock_on_hand": stock, 
             "lead_time_weeks": lead_time,
             "safety_stock_factor": 0.2
         }
-        
         response = requests.post("http://127.0.0.1:7860/allocate", json=payload)
         response.raise_for_status()
         data = response.json()
         
-        # Format the output based on your AllocationResponse schema
         action = data.get('action', 'N/A')
         target = data.get('target_inventory', 'N/A')
         allocate = data.get('recommended_allocation', 'N/A')
@@ -218,31 +227,72 @@ def fetch_allocation(state, category, stock, lead_time):
     except Exception as e:
         return f"Error connecting to backend: {str(e)}"
 
-# Build the beautiful UI
+# ---------------------------------------------------------
+# 3. GRADIO STAKEHOLDER UI (FRONTEND)
+# ---------------------------------------------------------
 with gr.Blocks(theme=gr.themes.Soft()) as ui:
     gr.Markdown("# 📦 Geo-Category Demand & Allocation Engine")
     gr.Markdown("Welcome to the stakeholder dashboard. Use the tabs below to interact with the underlying XGBoost ML Engine.")
     
     with gr.Tab("1. Demand Forecaster"):
         with gr.Row():
-            state_in = gr.Dropdown(choices=["SP", "RJ", "MG", "RS"], label="State")
-            cat_in = gr.Dropdown(choices=["health_beauty", "auto", "bed_bath_table", "computers_accessories"], label="Product Category")
-        predict_btn = gr.Button("Run Forecast", variant="primary")
+            state_in = gr.Dropdown(choices=states, label="State", value=states[0] if states else None)
+            cat_in = gr.Dropdown(choices=categories, label="Product Category", value=categories[0] if categories else None)
+        
+        # Collapsible section for granular ML features
+        with gr.Accordion("Advanced Temporal & Historical Features", open=False):
+            with gr.Row():
+                month_in = gr.Slider(1, 12, value=11, step=1, label="Month")
+                week_in = gr.Slider(1, 52, value=45, step=1, label="Week of Year")
+            with gr.Row():
+                lag1_in = gr.Number(value=150.0, label="Lag 1 Wk")
+                lag2_in = gr.Number(value=145.0, label="Lag 2 Wk")
+                lag3_in = gr.Number(value=140.0, label="Lag 3 Wk")
+                lag4_in = gr.Number(value=135.0, label="Lag 4 Wk")
+            with gr.Row():
+                rm_in = gr.Number(value=142.5, label="Rolling Mean (4Wk)")
+                rs_in = gr.Number(value=5.5, label="Rolling Std Dev (4Wk)")
+
+        predict_btn = gr.Button("🔮 Run Forecast", variant="primary")
         forecast_out = gr.Textbox(label="AI Forecast Result")
         
-        predict_btn.click(fn=fetch_demand, inputs=[state_in, cat_in], outputs=forecast_out)
+        predict_btn.click(
+            fn=fetch_demand, 
+            inputs=[state_in, cat_in, month_in, week_in, lag1_in, lag2_in, lag3_in, lag4_in, rm_in, rs_in], 
+            outputs=forecast_out
+        )
 
     with gr.Tab("2. Smart Allocation Engine"):
         with gr.Row():
-            alloc_state_in = gr.Dropdown(choices=["SP", "RJ", "MG", "RS"], label="State")
-            alloc_cat_in = gr.Dropdown(choices=["health_beauty", "auto", "bed_bath_table", "computers_accessories"], label="Product Category")
+            alloc_state_in = gr.Dropdown(choices=states, label="State", value=states[0] if states else None)
+            alloc_cat_in = gr.Dropdown(choices=categories, label="Product Category", value=categories[0] if categories else None)
+        
+        with gr.Accordion("Advanced Temporal & Historical Features", open=False):
+            with gr.Row():
+                a_month_in = gr.Slider(1, 12, value=11, step=1, label="Month")
+                a_week_in = gr.Slider(1, 52, value=45, step=1, label="Week of Year")
+            with gr.Row():
+                a_lag1_in = gr.Number(value=150.0, label="Lag 1 Wk")
+                a_lag2_in = gr.Number(value=145.0, label="Lag 2 Wk")
+                a_lag3_in = gr.Number(value=140.0, label="Lag 3 Wk")
+                a_lag4_in = gr.Number(value=135.0, label="Lag 4 Wk")
+            with gr.Row():
+                a_rm_in = gr.Number(value=142.5, label="Rolling Mean (4Wk)")
+                a_rs_in = gr.Number(value=5.5, label="Rolling Std Dev (4Wk)")
+
         with gr.Row():
             stock_in = gr.Slider(minimum=0, maximum=1000, value=50, step=1, label="Current Stock on Hand")
             lead_in = gr.Slider(minimum=1, maximum=14, value=2, step=1, label="Lead Time (Weeks)")
-        allocate_btn = gr.Button("Run Allocation Logic", variant="primary")
+            
+        allocate_btn = gr.Button("🚚 Run Allocation Logic", variant="primary")
         allocation_out = gr.Textbox(label="Supply Chain Recommendation", lines=4)
         
-        allocate_btn.click(fn=fetch_allocation, inputs=[alloc_state_in, alloc_cat_in, stock_in, lead_in], outputs=allocation_out)
+        allocate_btn.click(
+            fn=fetch_allocation, 
+            inputs=[alloc_state_in, alloc_cat_in, a_month_in, a_week_in, a_lag1_in, a_lag2_in, a_lag3_in, a_lag4_in, a_rm_in, a_rs_in, stock_in, lead_in], 
+            outputs=allocation_out
+        )
 
 # Mount the Gradio UI onto the FastAPI app
+# (Ensure your FastAPI instance is still named 'app' above this line)
 app = gr.mount_gradio_app(app, ui, path="/")
