@@ -1,0 +1,23 @@
+# Environments
+.venv/
+env/
+__pycache__/
+
+# Data and Models (DO NOT upload these to GitHub!)
+data/
+artifacts/
+*.pkl
+*.joblib
+*.model
+
+# MLflow
+mlruns/
+
+# Environment Variables
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Deploy folder
+deploy_folder/
