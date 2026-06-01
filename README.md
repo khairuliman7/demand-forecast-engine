@@ -6,9 +6,6 @@
 ![XGBoost](https://img.shields.io/badge/XGBoost-Forecasting-red.svg)
 ![Hugging Face](https://img.shields.io/badge/Deployed-HuggingFace-yellow.svg)
 
-## 🌐 Live Demo
-Access the live application hosted on Hugging Face Spaces: `[INSERT YOUR LINK HERE]`
-
 ## 📌 Project Overview
 An end-to-end Machine Learning microservice built to optimize supply chain logistics. Leveraging the Brazilian Olist e-commerce dataset, this system predicts future demand for specific product categories across different states and provides automated inventory allocation recommendations.
 
