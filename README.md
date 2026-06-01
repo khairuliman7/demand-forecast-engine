@@ -1,33 +1,45 @@
-# Geo-Category Demand Forecaster & Smart Allocation Engine
+# Category Demand Forecaster and Allocation Engine
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.103+-009688.svg)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)
 ![XGBoost](https://img.shields.io/badge/XGBoost-Forecasting-red.svg)
+![Hugging Face](https://img.shields.io/badge/Deployed-HuggingFace-yellow.svg)
+
+## 🌐 Live Demo
+Access the live application hosted on Hugging Face Spaces: `[INSERT YOUR LINK HERE]`
 
 ## 📌 Project Overview
-An end-to-end Machine Learning microservice built to optimize supply chain logistics. This system leverages the Brazilian Olist e-commerce dataset to predict future demand for specific product categories across different states, and automatically recommends optimal inventory allocations to minimize delivery times and avoid stockouts.
+An end-to-end Machine Learning microservice built to optimize supply chain logistics. Leveraging the Brazilian Olist e-commerce dataset, this system predicts future demand for specific product categories across different states and provides automated inventory allocation recommendations.
 
-Unlike traditional static ML notebooks, this project is designed as a production-grade, containerized AI microservice using **FastAPI, Docker, and XGBoost**.
+Designed as a production-grade microservice, this engine replaces static analysis with a containerized, asynchronous API, ensuring scalability and reproducibility.
 
 ## 💼 Business Value & Profit Drivers
-This engine is designed to generate measurable ROI for warehouse and logistics teams:
-1. **Smart Forward-Deployment (Cheaper Freight):** By accurately forecasting regional demand (e.g., 500 units of "Health & Beauty" in Minas Gerais), the business can ship bulk pallets to local distribution centers ahead of time, heavily reducing individual parcel freight costs.
-2. **Minimizing Stockouts (Capturing Lost Revenue):** The Smart Allocation endpoint acts as an early warning system, analyzing current stock levels and lead times to generate explicit `SHIP_INVENTORY` actions before a warehouse runs dry.
-3. **Reducing Dead Stock (Capital Efficiency):** The time-series engine detects dying trends, preventing the business from blindly restocking low-velocity items and freeing up capital.
+This engine is engineered to solve core logistics challenges and deliver measurable ROI:
+* **Smart Forward-Deployment:** Reduces freight costs by enabling bulk shipment to distribution centers based on regional demand forecasts.
+* **Minimizing Stockouts:** Acts as an early warning system to trigger `SHIP_INVENTORY` actions before a warehouse runs dry.
+* **Optimizing Storage Capacity:** By forecasting velocity per category, the system informs optimal warehouse slotting, ensuring high-demand goods are prioritized for easily accessible storage locations.
+* **Capital Efficiency:** Identifies low-velocity trends to prevent overstocking and capital tied up in dead stock.
 
 ## 🏗️ Architecture & Stack
 * **Modeling:** XGBoost, Scikit-Learn (Chronological Train-Test Split)
-* **Data Engineering:** Pandas, Numpy (Weekly Time-Series Aggregation)
-* **Serving Layer:** FastAPI (Asynchronous API endpoints with Pydantic Data Contracts)
-* **UI/Frontend:** Gradio (For Stakeholder Demonstration)
-* **Environment & MLOps:** `uv` (Package Management), MLflow (Experiment Tracking), Docker (Containerization)
+* **Data Engineering:** Pandas, Numpy (Weekly Time-Series Aggregation & Feature Engineering)
+* **Serving Layer:** FastAPI (Asynchronous endpoints, Pydantic validation)
+* **Deployment:** Docker (Containerized Microservice) hosted on Hugging Face Spaces
+* **Environment & MLOps:** `uv` (Package Management), MLflow (Experiment Tracking & Model Governance)
+* **Monitoring/Logging:** SQLite-based transaction logging with UUID traceability
 
 ## 🚀 API Endpoints
-The backend engine provides two distinct decoupled endpoints:
+The backend engine exposes three primary routes to handle prediction, allocation, and audit trails:
+* `POST /predict`: Accepts state/category inputs and returns projected demand volume.
+* `POST /allocate`: Accepts demand data, current stock, and lead times to return an actionable inventory replenishment plan.
+* `GET /logs`: Provides a fully auditable history of all inferences, including UUIDs, timestamps, input parameters, and generated allocation actions.
 
-* `POST /predict` - **Demand Forecaster**: Accepts state and category data, returning the raw projected volume for the upcoming week.
-* `POST /allocate` - **Smart Allocation Engine**: Accepts demand requests alongside `current_stock_on_hand` and `lead_time`, returning a concrete business action (e.g., "Target Inventory is 100, you have 50 in stock, so SHIP_INVENTORY of 50 units").
+## 🛡️ Model Governance & Evaluation
+To ensure production readiness, the model includes:
+* **Traceability:** Every prediction is logged with a unique UUID, allowing for a full audit trail of model performance and decision history.
+* **Automated Pipeline:** The training pipeline handles feature engineering and hyperparameter tuning, with MLflow acting as the immutable logbook to track experiment metrics (RMSE/MAE) and versioning.
+* **Validation:** Chronological split testing ensures the model is evaluated on unseen future data, preventing data leakage.
 
 ## 💻 Local Setup & Execution
 

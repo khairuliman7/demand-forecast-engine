@@ -67,10 +67,10 @@ def engineer_features(df):
 
 
 def run_training_pipeline():
-    print("🚀 Starting Demand Forecast Training Pipeline with MLflow...")
+    print("🚀 Starting Demand Forecast Training Pipeline with MLflow Governance...")
 
-    # Set up MLflow
-    mlflow.set_tracking_uri("sqlite:///mlruns.db") # Saves local DB in root folder
+    # Set up MLflow using your SQLite database!
+    mlflow.set_tracking_uri("sqlite:///mlruns.db") 
     mlflow.set_experiment("Demand_Forecaster_XGBoost")
 
     # ---------------------------------------------------------
@@ -117,11 +117,11 @@ def run_training_pipeline():
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
 
     # ---------------------------------------------------------
-    # 4. START MLFLOW RUN & TRAIN MODEL
+    # 4. START MLFLOW RUN & TRAIN MODEL (PHASE 3 GOVERNANCE)
     # ---------------------------------------------------------
-    with mlflow.start_run(run_name="Baseline_XGBoost_V1"):
+    with mlflow.start_run(run_name="Automated_Pipeline_Run"):
         
-        # Define hyperparams
+        # Define hyperparams explicitly
         params = {
             "n_estimators": 140,
             "learning_rate": 0.054722,
@@ -133,7 +133,7 @@ def run_training_pipeline():
             "objective": 'reg:squarederror'
         }
         
-        # Log parameters to MLflow
+        # 1. Log ALL parameters to MLflow
         mlflow.log_params(params)
         
         print("🤖 Training XGBoost Model...")
@@ -153,11 +153,11 @@ def run_training_pipeline():
         print(f"✅ Test RMSE: {rmse:.2f}")
         print(f"✅ Test MAE:  {mae:.2f}")
         
-        # Log metrics to MLflow
+        # 2. Log ALL metrics to MLflow
         mlflow.log_metric("rmse", rmse)
         mlflow.log_metric("mae", mae)
 
-        # Log the model itself to MLflow
+        # 3. Log the model artifact to MLflow
         mlflow.xgboost.log_model(model, artifact_path="xgboost-model")
 
         # ---------------------------------------------------------
@@ -169,11 +169,7 @@ def run_training_pipeline():
         joblib.dump(encoder, "artifacts/encoder.joblib")
         model.save_model("artifacts/xgb_model.json")
         
-        print(f"🎉 Pipeline Complete! Models tracking in MLflow and saved for API.")
+        print(f"🎉 Pipeline Complete! Every parameter, metric, and model is now permanently logged in MLflow!")
 
 if __name__ == "__main__":
     run_training_pipeline()
-
-"""
-python -m src.models.train_pipeline
-"""
